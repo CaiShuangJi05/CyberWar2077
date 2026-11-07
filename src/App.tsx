@@ -62,7 +62,7 @@ export default function App() {
   const [isDossierOpen, setIsDossierOpen] = useState(false);
   const [isScoreModalOpen, setIsScoreModalOpen] = useState(false);
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
-  const [isPaused, setIsPaused] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
   const [isVictory, setIsVictory] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [difficulty, setDifficulty] = useState(1.0);
@@ -207,96 +207,103 @@ export default function App() {
   useEffect(() => {
     if (!canvasMountRef.current) return;
 
-    const engine = new GameEngine(canvasMountRef.current, {
-      onScoreUpdate: (delta) => {
-        setStats((prev) => {
-          const next = { ...prev };
-          if (delta.kills) {
-            next.kills.thug++;
-          }
-          if (delta.headshot) {
-            next.kills.headshots++;
-          }
-          if (delta.damageBlocked) {
-            next.damageBlocked += delta.damageBlocked;
-          }
-          return next;
-        });
-      },
-      onTeammateDowned: (teammateId) => {
-        setTeammates((prev) =>
-          prev.map((tm) => (tm.id === teammateId ? { ...tm, status: 'downed_in_bag', hp: 0 } : tm))
-        );
-        const tm = teammates.find((t) => t.id === teammateId);
-        if (tm) setTargetRescueCallsign(tm.callsign);
-      },
-      onTeammateRescued: (teammateId) => {
-        setTeammates((prev) =>
-          prev.map((tm) => (tm.id === teammateId ? { ...tm, status: 'active', hp: 65 } : tm))
-        );
-        setStats((prev) => ({ ...prev, rescuesPerformed: prev.rescuesPerformed + 1 }));
-      },
-      onPlayerDamage: (amount) => {
-        setPlayerHp((prev) => {
-          const next = Math.max(0, prev - amount);
-          if (next <= 0) {
-            setIsVictory(false);
-            setIsScoreModalOpen(true);
-          }
-          return next;
-        });
-      },
-      onObjectiveComplete: () => {
-        setIsVictory(true);
-        setIsScoreModalOpen(true);
-      },
-      onLogMessage: (sender, text, type) => {
-        const time = new Date().toLocaleTimeString('zh-TW', { minute: '2-digit', second: '2-digit' });
-        const uniqueId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-        setCommMessages((prev) => [
-          ...prev.slice(-12),
-          { id: uniqueId, sender, text, time, type },
-        ]);
-      },
-      onInteractionAvailable: (prompt) => {
-        setInteractionPrompt(prompt);
-      },
-      onRescueProgressUpdate: (progress, state) => {
-        setRescueProgress(progress);
-        setRescueState(state);
-      },
-      onWeaponChange: (weapon) => {
-        setCurrentWeapon(weapon);
-      },
-      onPauseToggle: (paused) => {
-        setIsPaused(paused);
-      },
-      onSoftPressureUpdate: (pressure, phase, kills, extraScore) => {
-        setSoftPressureLevel(pressure);
-        setSoftPressurePhase(phase);
-        setTotalKillsCount(kills);
-        setAccumulatedScore(extraScore);
-      },
-      onFloatingScore: (text, _x, _z, color) => {
-        const id = `fs_${Date.now()}_${Math.random()}`;
-        setFloatingScores((prev) => [
-          ...prev.slice(-6),
-          { id, text, x: 45 + (Math.random() - 0.5) * 15, y: 40 + (Math.random() - 0.5) * 10, color },
-        ]);
-        setTimeout(() => {
-          setFloatingScores((prev) => prev.filter((item) => item.id !== id));
-        }, 1100);
-      },
-    });
+    let engine: GameEngine | null = null;
+    try {
+      engine = new GameEngine(canvasMountRef.current, {
+        onScoreUpdate: (delta) => {
+          setStats((prev) => {
+            const next = { ...prev };
+            if (delta.kills) {
+              next.kills.thug++;
+            }
+            if (delta.headshot) {
+              next.kills.headshots++;
+            }
+            if (delta.damageBlocked) {
+              next.damageBlocked += delta.damageBlocked;
+            }
+            return next;
+          });
+        },
+        onTeammateDowned: (teammateId) => {
+          setTeammates((prev) =>
+            prev.map((tm) => (tm.id === teammateId ? { ...tm, status: 'downed_in_bag', hp: 0 } : tm))
+          );
+          const tm = teammates.find((t) => t.id === teammateId);
+          if (tm) setTargetRescueCallsign(tm.callsign);
+        },
+        onTeammateRescued: (teammateId) => {
+          setTeammates((prev) =>
+            prev.map((tm) => (tm.id === teammateId ? { ...tm, status: 'active', hp: 65 } : tm))
+          );
+          setStats((prev) => ({ ...prev, rescuesPerformed: prev.rescuesPerformed + 1 }));
+        },
+        onPlayerDamage: (amount) => {
+          setPlayerHp((prev) => {
+            const next = Math.max(0, prev - amount);
+            if (next <= 0) {
+              setIsVictory(false);
+              setIsScoreModalOpen(true);
+            }
+            return next;
+          });
+        },
+        onObjectiveComplete: () => {
+          setIsVictory(true);
+          setIsScoreModalOpen(true);
+        },
+        onLogMessage: (sender, text, type) => {
+          const time = new Date().toLocaleTimeString('zh-TW', { minute: '2-digit', second: '2-digit' });
+          const uniqueId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+          setCommMessages((prev) => [
+            ...prev.slice(-12),
+            { id: uniqueId, sender, text, time, type },
+          ]);
+        },
+        onInteractionAvailable: (prompt) => {
+          setInteractionPrompt(prompt);
+        },
+        onRescueProgressUpdate: (progress, state) => {
+          setRescueProgress(progress);
+          setRescueState(state);
+        },
+        onWeaponChange: (weapon) => {
+          setCurrentWeapon(weapon);
+        },
+        onPauseToggle: (paused) => {
+          setIsPaused(paused);
+        },
+        onSoftPressureUpdate: (pressure, phase, kills, extraScore) => {
+          setSoftPressureLevel(pressure);
+          setSoftPressurePhase(phase);
+          setTotalKillsCount(kills);
+          setAccumulatedScore(extraScore);
+        },
+        onFloatingScore: (text, _x, _z, color) => {
+          const id = `fs_${Date.now()}_${Math.random()}`;
+          setFloatingScores((prev) => [
+            ...prev.slice(-6),
+            { id, text, x: 45 + (Math.random() - 0.5) * 15, y: 40 + (Math.random() - 0.5) * 10, color },
+          ]);
+          setTimeout(() => {
+            setFloatingScores((prev) => prev.filter((item) => item.id !== id));
+          }, 1100);
+        },
+      });
 
-    engineRef.current = engine;
+      engineRef.current = engine;
+      // Keep simulation loop silently paused on initial load until player clicks start
+      engine.isPaused = true;
+    } catch (err) {
+      console.warn('GameEngine mount safe caught:', err);
+    }
 
-    // Start in paused state while player is on the Trilingual Main Menu
-    engine.setPaused(true);
-    setIsPaused(true);
-
-    // Start Procedural BGM
-    soundManager.startBGM();
+    // Start Procedural BGM safely
+    try {
+      soundManager.startBGM();
+    } catch {
+      // Audio autoplay deferred to user interaction
+    }
 
     // High frequency UI sync timer
     const syncTimer = window.setInterval(() => {
@@ -308,7 +315,6 @@ export default function App() {
       setIsReloading(eng.isReloading);
       setIsAiming(eng.isAimingDownSights);
       setIsCrouched(eng.isCrouched);
-      setIsPaused(eng.isPaused);
       setViewMode(eng.viewMode);
       setUnlockedWeapons([...eng.unlockedWeapons]);
       if (WEAPON_CONFIGS[eng.currentWeaponType]) {
@@ -349,8 +355,12 @@ export default function App() {
     return () => {
       clearInterval(syncTimer);
       clearInterval(countdownTimer);
-      engine.dispose();
-      soundManager.stopBGM();
+      try {
+        engine?.dispose();
+      } catch {}
+      try {
+        soundManager.stopBGM();
+      } catch {}
     };
   }, []);
 
@@ -390,7 +400,7 @@ export default function App() {
     if (engineRef.current) {
       engineRef.current.setPaused(true);
     }
-    setIsPaused(true);
+    setIsPaused(false);
     setIsMainMenuOpen(true);
   };
 
@@ -654,7 +664,7 @@ export default function App() {
 
       {/* 7. Cyberpunk Tactical Pause Modal */}
       <PauseModal
-        isOpen={isPaused}
+        isOpen={isPaused && !isMainMenuOpen}
         onResume={handleTogglePause}
         onOpenTactical={() => {
           setIsPaused(false);

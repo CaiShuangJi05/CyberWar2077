@@ -88,8 +88,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   };
 
   const handleResetDefaults = () => {
-    if (window.confirm('Reset leaderboard data?')) {
+    try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_LEADERBOARD));
+      setEntries(DEFAULT_LEADERBOARD);
+    } catch {
       setEntries(DEFAULT_LEADERBOARD);
     }
   };

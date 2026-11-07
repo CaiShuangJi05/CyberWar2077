@@ -245,32 +245,39 @@ export class GameEngine {
     // Scene & Renderer
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x060810);
-    this.scene.fog = new THREE.FogExp2(0x080a14, 0.022);
+    const width = this.container.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1280) || 1280;
+    const height = this.container.clientHeight || (typeof window !== 'undefined' ? window.innerHeight : 720) || 720;
 
-    this.renderer = new THREE.WebGLRenderer({
-      antialias: !this.isSoftwareGl,
-      powerPreference: 'high-performance',
-    });
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
-    this.renderer.setPixelRatio(this.isSoftwareGl ? 1 : Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = !this.isSoftwareGl;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
-    this.container.appendChild(this.renderer.domElement);
-
-    // Studio Environment map
     try {
-      const pmrem = new THREE.PMREMGenerator(this.renderer);
-      this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-      pmrem.dispose();
-    } catch {
-      // RoomEnvironment fallback safe
+      this.renderer = new THREE.WebGLRenderer({
+        antialias: !this.isSoftwareGl,
+        powerPreference: 'high-performance',
+      });
+      this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+      this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      this.renderer.toneMappingExposure = 1.15;
+      this.renderer.setPixelRatio(this.isSoftwareGl ? 1 : Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 2));
+      this.renderer.shadowMap.enabled = !this.isSoftwareGl;
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      this.renderer.setSize(width, height);
+      this.container.appendChild(this.renderer.domElement);
+    } catch (err) {
+      console.warn('WebGL init fallback or context lost:', err);
     }
 
-    // Cameras
-    const aspect = this.container.clientWidth / this.container.clientHeight;
+    // Studio Environment map
+    if (this.renderer) {
+      try {
+        const pmrem = new THREE.PMREMGenerator(this.renderer);
+        this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+        pmrem.dispose();
+      } catch {
+        // RoomEnvironment fallback safe
+      }
+    }
+
+    // Cameras with safe non-zero aspect
+    const aspect = width / (height || 1);
     this.camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 300);
     this.tacticalCamera = new THREE.PerspectiveCamera(50, aspect, 0.1, 350);
     this.tacticalCamera.position.set(0, 16, 22);
@@ -1958,16 +1965,28 @@ export class GameEngine {
   public setPaused(paused: boolean) {
     if (this.isPaused === paused) return;
     this.isPaused = paused;
-    soundManager.playPauseClick(paused);
-    if (paused && document.pointerLockElement) {
-      document.exitPointerLock?.();
+    try {
+      soundManager.playPauseClick(paused);
+    } catch {
+      // Audio might not be ready yet
     }
-    this.callbacks.onPauseToggle?.(paused);
-    this.callbacks.onLogMessage(
-      'SYSTEM',
-      paused ? '【戰術暫停中】戰場時間與動作已凍結。可按 [P] 或點擊面板恢復。' : '【作戰繼續】新夜城戰線重新啟動！',
-      paused ? 'warning' : 'tactical'
-    );
+    try {
+      if (paused && typeof document !== 'undefined' && document.pointerLockElement) {
+        document.exitPointerLock?.();
+      }
+    } catch {
+      // Ignore iframe pointer lock restriction
+    }
+    try {
+      this.callbacks.onPauseToggle?.(paused);
+      this.callbacks.onLogMessage(
+        'SYSTEM',
+        paused ? '【戰術暫停中】戰場時間與動作已凍結。可按 [P] 或點擊面板恢復。' : '【作戰繼續】新夜城戰線重新啟動！',
+        paused ? 'warning' : 'tactical'
+      );
+    } catch {
+      // Callback error safe
+    }
   }
 
   /**
@@ -2969,8 +2988,9 @@ export class GameEngine {
 
   private handleResize() {
     if (!this.container || !this.renderer) return;
-    const w = this.container.clientWidth;
-    const h = this.container.clientHeight;
+    const w = this.container.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1280) || 1280;
+    const h = this.container.clientHeight || (typeof window !== 'undefined' ? window.innerHeight : 720) || 720;
+    if (h === 0) return;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.tacticalCamera.aspect = w / h;

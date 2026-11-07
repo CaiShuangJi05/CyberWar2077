@@ -18,21 +18,27 @@ class SoundManager {
   }
 
   private initContext() {
-    if (!this.ctx) {
-      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      this.ctx = new AudioContextClass();
-      
-      this.bgmGain = this.ctx.createGain();
-      this.bgmGain.gain.value = 0.22;
-      this.bgmGain.connect(this.ctx.destination);
+    try {
+      if (!this.ctx) {
+        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (!AudioContextClass) return;
+        this.ctx = new AudioContextClass();
+        
+        this.bgmGain = this.ctx.createGain();
+        this.bgmGain.gain.value = 0.22;
+        this.bgmGain.connect(this.ctx.destination);
 
-      this.sfxGain = this.ctx.createGain();
-      this.sfxGain.gain.value = 0.45;
-      this.sfxGain.connect(this.ctx.destination);
-    }
+        this.sfxGain = this.ctx.createGain();
+        this.sfxGain.gain.value = 0.45;
+        this.sfxGain.connect(this.ctx.destination);
+      }
 
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+    } catch {
+      // Audio not permitted yet or not supported in this environment
+      this.ctx = null;
     }
   }
 
