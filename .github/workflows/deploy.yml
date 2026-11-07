@@ -1,32 +1,40 @@
-name: Deploy Game
+name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
+    branches:
+      - main # 如果你的主要分支是 master，請改為 master
 
+# 設定 GITHUB_TOKEN 的權限，允許部署到 GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# 同一時間只允許一個部署執行
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
+
 jobs:
   deploy:
-    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          node-version: 22
-      - run: npm install --legacy-peer-deps
-      - run: npm run build -- --base=/CyberWar2077
-/
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-      - id: deployment
+          # 若為根目錄靜態網站，請填 '.'；若有 build 目錄（如 dist 或 build），請改為 './dist'
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
