@@ -1,0 +1,6 @@
+{
+  "name": "新夜城：違禁重組 (Neo-Nights: Contraband Protocol)",
+  "description": "賽博朋克風 4 人戰術合作射擊 × 動態貨架路徑規劃。潛入虛擬樂園直播戰場，擊殺恐怖分子、奪回高危違禁品，並透過規劃貨架移動路線與賽博防爆袋隊友救援完成撤離！",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
